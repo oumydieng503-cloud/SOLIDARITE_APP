@@ -1,0 +1,45 @@
+{
+  "name": "Solidarité App",
+  "short_name": "Solidarité",
+  "description": "Plateforme de solidarité communautaire au Sénégal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot.png",
+      "sizes": "1280x720",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["social", "finance"],
+  "shortcuts": [
+    {
+      "name": "Faire un don",
+      "url": "/donate",
+      "description": "Faire un don directement"
+    },
+    {
+      "name": "Bénéficiaires",
+      "url": "/beneficiaries",
+      "description": "Voir les bénéficiaires"
+    }
+  ]
+}

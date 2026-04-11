@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Solidarité" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- SEO -->
+    <title>Solidarité App — Plateforme de solidarité communautaire au Sénégal</title>
+    <meta name="description" content="Connecter donateurs et bénéficiaires vérifiés au Sénégal. Soutenez les personnes handicapées et les plus démunis via Wave ou Orange Money." />
+    <meta name="keywords" content="solidarité, sénégal, don, aide, wave, orange money, bénéficiaire" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Solidarité App" />
+    <meta property="og:description" content="Plateforme de solidarité communautaire au Sénégal" />
+    <meta property="og:type" content="website" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Enregistrement du Service Worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW enregistré:', reg.scope))
+            .catch(err => console.log('SW erreur:', err))
+        })
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fond sombre sur toute l'app */
+body {
+  background-color: #0f172a; /* slate-900 */
+  color: white;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  background-color: #0f172a;
+  min-height: 100vh;
+}
