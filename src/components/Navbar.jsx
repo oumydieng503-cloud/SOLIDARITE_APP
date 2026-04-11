@@ -41,9 +41,6 @@ function Navbar() {
                     <HelpCircle size={14} /><span className="hidden md:inline">{t('demanderAide')}</span>
                   </Link>
                 )}
-                <Link to="/profile" className="text-sm text-slate-400 hidden md:block hover:text-white transition">
-                {user?.prenom} {user?.nom}
-                </Link>
                 <Link to="/temoignages" className="flex items-center gap-1 text-slate-300 hover:text-white text-sm transition">
                   <MessageSquare size={14} /><span className="hidden md:inline">{t('temoignages')}</span>
                 </Link>

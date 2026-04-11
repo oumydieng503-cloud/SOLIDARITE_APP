@@ -45,7 +45,7 @@ function App() {
           <Routes>
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-             <Route path="/profile" element={<Profile />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="*" element={<NotFound />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/login" element={<Login />} />

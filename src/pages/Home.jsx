@@ -289,6 +289,37 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Soutenir la plateforme */}
+          <div className="border-t border-slate-800 pt-8 mb-8">
+            <div className="bg-slate-800 border border-blue-500 border-opacity-20 rounded-2xl p-6 text-center max-w-lg mx-auto">
+              <p className="text-blue-400 font-bold text-sm uppercase tracking-widest mb-2">
+                {lang === 'wo' ? 'Soutenir plateforme bi' : 'Soutenir la plateforme'}
+              </p>
+              <p className="text-slate-400 text-sm mb-5">
+                {lang === 'wo'
+                  ? 'Solidarité App mooy benn projet personnel. Su bëgg nga soutenir sunu travail, yëgël ndimbal ci Wave walla Orange Money.'
+                  : 'Solidarité App est un projet personnel créé pour aider notre communauté. Si vous souhaitez soutenir notre travail, envoyez un don via Wave ou Orange Money.'}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <a href="wave://send?phone=+221770705173" 
+                  className="flex flex-col items-center gap-1 bg-blue-600 bg-opacity-20 border border-blue-500 border-opacity-40 px-5 py-2.5 rounded-xl hover:bg-opacity-30 transition">
+                  <span className="text-blue-400 text-sm font-bold">Wave</span>
+                  <span className="text-white font-black">77 070 51 73</span>
+                  <span className="text-blue-500 text-xs">Cliquez sur mobile</span>
+                </a>
+                <a href="tel:+221770705173"
+                  className="flex flex-col items-center gap-1 bg-slate-700 border border-slate-600 px-5 py-2.5 rounded-xl hover:bg-slate-600 transition">
+                  <span className="text-orange-400 text-sm font-bold">Orange Money</span>
+                  <span className="text-white font-black">77 070 51 73</span>
+                  <span className="text-slate-500 text-xs">Cliquez sur mobile</span>
+                </a>
+              </div>
+              <p className="text-slate-500 text-xs mt-4">
+                {lang === 'wo' ? 'Jaajëf ci sa soutien !' : 'Merci pour votre soutien ! 🙏'}
+              </p>
+            </div>
+          </div>
+
           {/* Contact */}
           <div className="border-t border-slate-800 pt-8">
             <p className="text-slate-500 text-sm text-center mb-4">
