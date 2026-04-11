@@ -52,7 +52,7 @@ async function envoyerSMS(telephone, message) {
 }
 
 const app = express()
-const PORT = 5000
+const PORT = process.env.PORT || 5000
 const JWT_SECRET = process.env.JWT_SECRET || 'solidarite_app_secret_2024'
 const ADMIN_EMAIL = 'oumydieng503@gmail.com'
 
