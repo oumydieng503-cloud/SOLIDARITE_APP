@@ -1,10 +1,10 @@
 {
-  "name": "Solidarité App",
-  "short_name": "Solidarité",
+  "name": "AidLink",
+  "short_name": "AidLink",
   "description": "Plateforme de solidarité communautaire au Sénégal",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
+  "background_color": "#1d4ed8",
   "theme_color": "#2563eb",
   "orientation": "portrait",
   "lang": "fr",

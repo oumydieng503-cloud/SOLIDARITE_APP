@@ -22,11 +22,6 @@ import NotFound from './pages/NotFound'
 import Profile from './pages/Profile'
 import InstallPWA from './components/InstallPWA'
 
-
-
-
-
-
 function App() {
   useEffect(() => {
     const sessionId = sessionStorage.getItem('sessionId') || Date.now().toString()
@@ -35,7 +30,6 @@ function App() {
   }, [])
 
   return (
-    
     <AuthProvider>
       <LanguageProvider>
         <BrowserRouter>
@@ -43,22 +37,29 @@ function App() {
           <InstallPWA />
 
           <Routes>
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="*" element={<NotFound />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
+            {/* ✅ Routes publiques */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/temoignages" element={<Testimonials />} />
+
+            {/* ✅ IMPORTANT : auth/callback AVANT le wildcard * */}
+            <Route path="/auth/callback" element={<AuthCallback />} />
+
+            {/* ✅ Routes protégées */}
             <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
             <Route path="/donate" element={<ProtectedRoute><Donate /></ProtectedRoute>} />
             <Route path="/beneficiaries" element={<ProtectedRoute><Beneficiaries /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/request" element={<ProtectedRoute><RequestHelp /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute adminOnly={true}><Admin /></ProtectedRoute>} />
-            <Route path="/temoignages" element={<Testimonials />} />
+
+            {/* ✅ wildcard TOUJOURS EN DERNIER */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
-          {/* 🤖 Chatbot visible sur toutes les pages */}
+
           <Chatbot />
         </BrowserRouter>
       </LanguageProvider>
