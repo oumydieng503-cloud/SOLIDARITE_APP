@@ -62,13 +62,15 @@ function Testimonials() {
     async function charger() {
       try {
         const res = await getTemoignages()
-        // ✅ Gère tous les formats possibles de réponse
-        const list = res?.temoignages || res?.data || res || []
-        const safeList = Array.isArray(list) ? list : []
+        // ✅ Le backend retourne directement un tableau []
+        const safeList = Array.isArray(res) ? res : (res?.temoignages || res?.data || [])
         setAides(safeList)
         const villes = new Set(safeList.map(a => a.ville).filter(Boolean)).size
         setStats({ total: safeList.length, villes })
-      } catch (e) { console.error(e) }
+      } catch (e) {
+        console.error(e)
+        setAides([])
+      }
       setLoading(false)
     }
     charger()

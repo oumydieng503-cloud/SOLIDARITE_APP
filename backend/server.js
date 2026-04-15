@@ -62,7 +62,15 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET // secret key pour bypasser RLS
 )
 
-app.use(cors())
+app.use(cors({
+  origin: [
+    'https://solidarite-app-zeta.vercel.app',
+    'https://aidlink-zeta.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ],
+  credentials: true
+}))
 app.use(express.json({ limit: '10mb' }))
 
 // ========== MIDDLEWARE JWT ==========
