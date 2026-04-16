@@ -13,33 +13,78 @@ function AuthCallback() {
   useEffect(() => {
     async function handleCallback() {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        if (error || !session) { navigate('/login'); return }
+        // ✅ Écouter le changement de session (capte le hash dans l'URL)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'SIGNED_IN' && session) {
+            subscription.unsubscribe()
 
-        const { user } = session
-        const email = user.email
-        const prenom = user.user_metadata?.given_name || user.user_metadata?.name?.split(' ')[0] || 'Utilisateur'
-        const nom = user.user_metadata?.family_name || user.user_metadata?.name?.split(' ')[1] || ''
+            const { user } = session
+            const email = user.email
+            const prenom = user.user_metadata?.given_name || user.user_metadata?.name?.split(' ')[0] || 'Utilisateur'
+            const nom = user.user_metadata?.family_name || user.user_metadata?.name?.split(' ')[1] || ''
 
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/google-callback`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, prenom, nom, googleId: user.id })
+            try {
+              const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/google-callback`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, prenom, nom, googleId: user.id })
+              })
+
+              const data = await res.json()
+              if (data.success) {
+                localStorage.setItem('token', data.token)
+                localStorage.setItem('user', JSON.stringify(data.user))
+                navigate('/')
+              } else {
+                console.error('Erreur backend:', data.message)
+                navigate('/login')
+              }
+            } catch (err) {
+              console.error('Erreur fetch backend:', err)
+              navigate('/login')
+            }
+          } else if (event === 'SIGNED_OUT') {
+            navigate('/login')
+          }
         })
 
-        const data = await res.json()
-        if (data.success) {
-          localStorage.setItem('token', data.token)
-          localStorage.setItem('user', JSON.stringify(data.user))
-          navigate('/')
-        } else {
-          navigate('/login')
+        // ✅ Vérifier aussi si session existe déjà
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          subscription.unsubscribe()
+
+          const { user } = session
+          const email = user.email
+          const prenom = user.user_metadata?.given_name || user.user_metadata?.name?.split(' ')[0] || 'Utilisateur'
+          const nom = user.user_metadata?.family_name || user.user_metadata?.name?.split(' ')[1] || ''
+
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/google-callback`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, prenom, nom, googleId: user.id })
+            })
+
+            const data = await res.json()
+            if (data.success) {
+              localStorage.setItem('token', data.token)
+              localStorage.setItem('user', JSON.stringify(data.user))
+              navigate('/')
+            } else {
+              navigate('/login')
+            }
+          } catch (err) {
+            console.error(err)
+            navigate('/login')
+          }
         }
+
       } catch (err) {
-        console.error(err)
+        console.error('Erreur AuthCallback:', err)
         navigate('/login')
       }
     }
+
     handleCallback()
   }, [navigate])
 
