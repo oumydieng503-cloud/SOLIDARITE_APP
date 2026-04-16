@@ -70,27 +70,35 @@ function Donate() {
     )
   }
 
+  // ✅ Fonction Wave corrigée — ouvre directement l'écran de saisie
+  const ouvrirWave = (numero, montantVal) => {
+    let tel = numero.replace(/\s/g, '').replace(/-/g, '')
+    if (!tel.startsWith('+')) tel = tel.startsWith('221') ? '+' + tel : '+221' + tel
+    const amount = parseInt(montantVal) || 1 // ✅ amount=1 minimum pour ouvrir l'écran de saisie
+    const a = document.createElement('a')
+    a.href = `wave://send?phone=${tel}&amount=${amount}`
+    a.click()
+    // Fallback web si l'app Wave n'est pas installée
+    setTimeout(() => window.open(`https://paywithwave.com/pay?phone=${tel}&amount=${amount}`, '_blank'), 1500)
+  }
+
+  const ouvrirOrangeMoney = (numero) => {
+    let tel = numero.replace(/\s/g, '').replace(/-/g, '')
+    if (!tel.startsWith('+')) tel = tel.startsWith('221') ? '+' + tel : '+221' + tel
+    window.open(`tel:${tel}`, '_self')
+  }
+
   const ouvrirAppPaiement = (mode) => {
     setModePaiement(mode)
-
-    // ✅ Fond général → votre numéro, sinon numéro du bénéficiaire
     const numero = selectedBeneficiaire === 'general'
       ? NUMERO_GENERAL
       : beneficiaireSelectionne?.numero_paiement
-
     if (!numero) return
 
-    let tel = numero.replace(/\s/g, '').replace(/-/g, '')
-    if (!tel.startsWith('+')) tel = tel.startsWith('221') ? '+' + tel : '+221' + tel
-    const montantVal = parseInt(montant) || 0
-
     if (mode === 'wave') {
-      const a = document.createElement('a')
-      a.href = `wave://send?phone=${tel}&amount=${montantVal}`
-      a.click()
-      setTimeout(() => window.open(`https://paywithwave.com/pay?phone=${tel}&amount=${montantVal}`, '_blank'), 1500)
+      ouvrirWave(numero, montant)
     } else if (mode === 'orange') {
-      window.open(`tel:${tel}`, '_self')
+      ouvrirOrangeMoney(numero)
     }
   }
 
@@ -133,6 +141,10 @@ function Donate() {
       </div>
     )
   }
+
+  const numeroActuel = selectedBeneficiaire === 'general'
+    ? NUMERO_GENERAL
+    : beneficiaireSelectionne?.numero_paiement
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -181,7 +193,6 @@ function Donate() {
                         </div>
                       )}
                     </div>
-                    {/* ✅ Afficher numéro pour fond général aussi */}
                     {selectedBeneficiaire === b.id && (
                       <p className="text-green-600 text-xs mt-2 font-medium">
                         Wave/OM : {b.id === 'general' ? NUMERO_GENERAL : b.numero_paiement}
@@ -232,17 +243,16 @@ function Donate() {
             <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
               <h2 className="text-lg font-bold text-gray-800 mb-4 pb-3 border-b border-gray-100">Mode de paiement</h2>
 
-              {/* ✅ Afficher numéro pour fond général et bénéficiaire */}
+              {/* ✅ Numéro toujours affiché */}
               <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-3">
                 <p className="text-blue-600 text-sm font-medium">
                   {selectedBeneficiaire === 'general' ? 'Numéro AidLink (Fonds général)' : 'Numéro du bénéficiaire'}
                 </p>
-                <p className="text-blue-800 font-black text-lg">
-                  {selectedBeneficiaire === 'general' ? NUMERO_GENERAL : beneficiaireSelectionne?.numero_paiement}
-                </p>
+                <p className="text-blue-800 font-black text-lg">{numeroActuel}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                {/* ✅ Wave — ouvre directement l'écran de saisie avec le numéro et montant */}
                 <button type="button" onClick={() => ouvrirAppPaiement('wave')}
                   className={`py-4 px-4 rounded-xl border-2 transition flex flex-col items-center gap-1 ${
                     modePaiement === 'wave' ? 'bg-blue-600 border-blue-600 text-white shadow-sm' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-blue-300'
@@ -268,11 +278,9 @@ function Donate() {
               {modePaiement !== 'especes' && (
                 <div className="mt-4 bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-600">
                   <p className="font-semibold text-gray-800 mb-1">Instructions :</p>
-                  <p>1. Cliquez sur <strong>{modePaiement === 'wave' ? 'Wave' : 'Orange Money'}</strong></p>
-                  <p>2. Envoyez <strong>{montant ? parseInt(montant).toLocaleString() + ' FCFA' : 'le montant'}</strong></p>
-                  <p>3. Au numéro : <strong className="text-gray-800">
-                    {selectedBeneficiaire === 'general' ? NUMERO_GENERAL : beneficiaireSelectionne?.numero_paiement}
-                  </strong></p>
+                  <p>1. Cliquez sur <strong>{modePaiement === 'wave' ? 'Wave' : 'Orange Money'}</strong> — l'app s'ouvre avec le numéro pré-rempli</p>
+                  <p>2. Saisissez le montant : <strong>{montant ? parseInt(montant).toLocaleString() + ' FCFA' : 'le montant souhaité'}</strong></p>
+                  <p>3. Numéro : <strong className="text-gray-800">{numeroActuel}</strong></p>
                   <p>4. Revenez ici et cliquez "Confirmer mon don"</p>
                 </div>
               )}

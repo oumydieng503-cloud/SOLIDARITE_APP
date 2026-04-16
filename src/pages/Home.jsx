@@ -152,7 +152,6 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Schéma contact direct */}
             <div className="flex items-center justify-center gap-6 mb-12 flex-wrap">
               <div className="bg-white bg-opacity-20 border-2 border-white border-opacity-40 rounded-2xl px-8 py-5 text-center">
                 <p className="text-blue-200 font-bold text-xs uppercase tracking-widest mb-1">Donateur</p>
@@ -277,7 +276,8 @@ export default function Home() {
                   : 'AidLink est un projet personnel créé pour aider notre communauté. Soutenez notre travail via Wave ou Orange Money.'}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <a href="wave://send?phone=+221770705173"
+                {/* ✅ amount=1 force l'ouverture de l'écran de saisie Wave */}
+                <a href="wave://send?phone=+221770705173&amount=1"
                   className="flex flex-col items-center gap-1 bg-blue-600 bg-opacity-20 border border-blue-400 border-opacity-40 px-5 py-2.5 rounded-xl hover:bg-opacity-30 transition">
                   <span className="text-blue-300 text-sm font-bold">Wave</span>
                   <span className="text-white font-black">77 070 51 73</span>
