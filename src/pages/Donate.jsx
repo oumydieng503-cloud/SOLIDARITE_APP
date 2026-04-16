@@ -3,6 +3,8 @@ import { useAuth } from '../hooks/useAuth'
 import { useLocation } from 'react-router-dom'
 import { getDemandesValides, createDon } from '../api/api'
 
+const NUMERO_GENERAL = '770705173' // ← Votre numéro pour le fond général
+
 const inputClass = "w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
 const labelClass = "block text-gray-700 text-sm font-medium mb-2"
 
@@ -23,7 +25,16 @@ function Donate() {
     async function charger() {
       const data = await getDemandesValides(1, 100)
       const list = [
-        { id: 'general', nom: 'Fonds général', type_besoin: '', telephone: '', numero_paiement: '', adresse: '', ville: '' },
+        {
+          id: 'general',
+          nom: 'Fonds général',
+          type_besoin: '',
+          telephone: NUMERO_GENERAL,
+          numero_paiement: NUMERO_GENERAL,
+          adresse: '',
+          ville: '',
+          description: 'Distribution équitable entre tous les bénéficiaires'
+        },
         ...(data.demandes || []).map(b => ({
           id: b.id, nom: `${b.prenom} ${b.nom}`, type_besoin: b.type_besoin,
           telephone: b.telephone, numero_paiement: b.numero_paiement || b.telephone,
@@ -61,11 +72,18 @@ function Donate() {
 
   const ouvrirAppPaiement = (mode) => {
     setModePaiement(mode)
-    const numero = beneficiaireSelectionne?.numero_paiement
-    if (!numero || selectedBeneficiaire === 'general') return
+
+    // ✅ Fond général → votre numéro, sinon numéro du bénéficiaire
+    const numero = selectedBeneficiaire === 'general'
+      ? NUMERO_GENERAL
+      : beneficiaireSelectionne?.numero_paiement
+
+    if (!numero) return
+
     let tel = numero.replace(/\s/g, '').replace(/-/g, '')
     if (!tel.startsWith('+')) tel = tel.startsWith('221') ? '+' + tel : '+221' + tel
     const montantVal = parseInt(montant) || 0
+
     if (mode === 'wave') {
       const a = document.createElement('a')
       a.href = `wave://send?phone=${tel}&amount=${montantVal}`
@@ -79,17 +97,27 @@ function Donate() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!beneficiaireSelectionne) return
+
+    const numeroFinal = selectedBeneficiaire === 'general'
+      ? NUMERO_GENERAL
+      : beneficiaireSelectionne.numero_paiement
+
     const donData = {
-      donateur_email: user?.email, type_don: typeDon,
+      donateur_email: user?.email,
+      type_don: typeDon,
       montant: typeDon === 'argent' ? parseInt(montant) : null,
       description: typeDon !== 'argent' ? description : null,
-      beneficiaire_id: String(selectedBeneficiaire), beneficiaire_nom: beneficiaireSelectionne.nom,
-      beneficiaire_contact: beneficiaireSelectionne.telephone, beneficiaire_paiement: beneficiaireSelectionne.numero_paiement,
+      beneficiaire_id: String(selectedBeneficiaire),
+      beneficiaire_nom: beneficiaireSelectionne.nom,
+      beneficiaire_contact: beneficiaireSelectionne.telephone,
+      beneficiaire_paiement: numeroFinal,
       mode_paiement: modePaiement,
       points_gagnes: typeDon === 'argent' ? Math.floor((parseInt(montant) || 0) / 1000) : 10
     }
+
     const result = await createDon(donData)
     if (!result.success) { alert('Erreur : ' + result.message); return }
+
     setMessage(`Don confirmé ! Bénéficiaire : ${beneficiaireSelectionne.nom}. ${montant ? parseInt(montant).toLocaleString() + ' FCFA' : description || typeDon} via ${modePaiement}. Merci pour votre générosité !`)
     setSubmitted(true)
     setMontant('')
@@ -153,8 +181,11 @@ function Donate() {
                         </div>
                       )}
                     </div>
-                    {selectedBeneficiaire === b.id && b.numero_paiement && b.id !== 'general' && (
-                      <p className="text-green-600 text-xs mt-2 font-medium">Wave/OM : {b.numero_paiement}</p>
+                    {/* ✅ Afficher numéro pour fond général aussi */}
+                    {selectedBeneficiaire === b.id && (
+                      <p className="text-green-600 text-xs mt-2 font-medium">
+                        Wave/OM : {b.id === 'general' ? NUMERO_GENERAL : b.numero_paiement}
+                      </p>
                     )}
                   </button>
                 ))}
@@ -200,12 +231,17 @@ function Donate() {
             {/* Mode paiement */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
               <h2 className="text-lg font-bold text-gray-800 mb-4 pb-3 border-b border-gray-100">Mode de paiement</h2>
-              {selectedBeneficiaire !== 'general' && beneficiaireSelectionne?.numero_paiement && (
-                <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-3">
-                  <p className="text-blue-600 text-sm font-medium">Numéro du bénéficiaire</p>
-                  <p className="text-blue-800 font-black text-lg">{beneficiaireSelectionne.numero_paiement}</p>
-                </div>
-              )}
+
+              {/* ✅ Afficher numéro pour fond général et bénéficiaire */}
+              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                <p className="text-blue-600 text-sm font-medium">
+                  {selectedBeneficiaire === 'general' ? 'Numéro AidLink (Fonds général)' : 'Numéro du bénéficiaire'}
+                </p>
+                <p className="text-blue-800 font-black text-lg">
+                  {selectedBeneficiaire === 'general' ? NUMERO_GENERAL : beneficiaireSelectionne?.numero_paiement}
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => ouvrirAppPaiement('wave')}
                   className={`py-4 px-4 rounded-xl border-2 transition flex flex-col items-center gap-1 ${
@@ -228,12 +264,15 @@ function Donate() {
                   Espèces (déposer au bureau)
                 </button>
               </div>
-              {modePaiement !== 'especes' && selectedBeneficiaire !== 'general' && beneficiaireSelectionne?.numero_paiement && (
+
+              {modePaiement !== 'especes' && (
                 <div className="mt-4 bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-600">
                   <p className="font-semibold text-gray-800 mb-1">Instructions :</p>
                   <p>1. Cliquez sur <strong>{modePaiement === 'wave' ? 'Wave' : 'Orange Money'}</strong></p>
                   <p>2. Envoyez <strong>{montant ? parseInt(montant).toLocaleString() + ' FCFA' : 'le montant'}</strong></p>
-                  <p>3. Au numéro : <strong className="text-gray-800">{beneficiaireSelectionne.numero_paiement}</strong></p>
+                  <p>3. Au numéro : <strong className="text-gray-800">
+                    {selectedBeneficiaire === 'general' ? NUMERO_GENERAL : beneficiaireSelectionne?.numero_paiement}
+                  </strong></p>
                   <p>4. Revenez ici et cliquez "Confirmer mon don"</p>
                 </div>
               )}
