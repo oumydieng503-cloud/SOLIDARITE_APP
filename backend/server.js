@@ -1,4 +1,4 @@
-require('dotenv').config()
+require('dotenv').config({ quiet: true })
 const express = require('express')
 const cors = require('cors')
 const bcrypt = require('bcryptjs')
@@ -53,8 +53,17 @@ async function envoyerSMS(telephone, message) {
 
 const app = express()
 const PORT = process.env.PORT || 5000
-const JWT_SECRET = process.env.JWT_SECRET || 'solidarite_app_secret_2024'
-const ADMIN_EMAIL = 'oumydieng503@gmail.com'
+const JWT_SECRET = process.env.JWT_SECRET
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL
+
+if (!JWT_SECRET) {
+  console.error('❌ JWT_SECRET manquant. Ajoutez-le dans backend/.env (voir .env.example).')
+  process.exit(1)
+}
+if (!ADMIN_EMAIL) {
+  console.error('❌ ADMIN_EMAIL manquant. Ajoutez-le dans backend/.env (voir .env.example).')
+  process.exit(1)
+}
 
 // Supabase client
 const supabase = createClient(
@@ -64,11 +73,12 @@ const supabase = createClient(
 
 app.use(cors({
   origin: [
+    process.env.FRONTEND_URL,
     'https://solidarite-app-zeta.vercel.app',
     'https://aidlink-zeta.vercel.app',
     'http://localhost:5173',
     'http://localhost:3000',
-  ],
+  ].filter(Boolean),
   credentials: true
 }))
 app.use(express.json({ limit: '10mb' }))
@@ -89,6 +99,16 @@ function requireAdmin(req, res, next) {
     return res.status(403).json({ success: false, message: 'Accès admin requis' })
   }
   next()
+}
+
+/** Accès limité au propriétaire du compte ou à l'admin */
+function requireSelfOrAdmin(req, res, next) {
+  const target = decodeURIComponent(req.params.email || '').toLowerCase()
+  const me = (req.user?.email || '').toLowerCase()
+  if (req.user?.role === 'admin' || me === target) {
+    return next()
+  }
+  return res.status(403).json({ success: false, message: 'Accès non autorisé' })
 }
 
 // ========== ROUTES ==========
@@ -130,7 +150,16 @@ app.post('/api/register', async (req, res) => {
     .select('id')
     .single()
 
-  if (error) return res.status(400).json({ success: false, message: error.message })
+  if (error) {
+    const msg = error.message || ''
+    if (/fetch failed|ENOTFOUND|ECONNREFUSED|network/i.test(msg)) {
+      return res.status(503).json({
+        success: false,
+        message: 'Impossible de joindre Supabase. Vérifiez SUPABASE_URL et SUPABASE_SECRET dans backend/.env (projet actif dans le dashboard Supabase).'
+      })
+    }
+    return res.status(400).json({ success: false, message: msg })
+  }
 
   res.json({ success: true, id: data.id })
 })
@@ -170,8 +199,8 @@ app.post('/api/login', async (req, res) => {
   res.json({ success: true, user: userData, token })
 })
 
-// Récupérer un utilisateur
-app.get('/api/users/:email', authenticateToken, async (req, res) => {
+// Récupérer un utilisateur (soi-même ou admin)
+app.get('/api/users/:email', authenticateToken, requireSelfOrAdmin, async (req, res) => {
   const { data, error } = await supabase
     .from('users')
     .select('id, email, nom, prenom, telephone, role, points')
@@ -182,8 +211,8 @@ app.get('/api/users/:email', authenticateToken, async (req, res) => {
   res.json(data)
 })
 
-// Mettre à jour les points
-app.put('/api/users/:email/points', authenticateToken, async (req, res) => {
+// Mettre à jour les points (admin uniquement — les dons gèrent les points côté serveur)
+app.put('/api/users/:email/points', authenticateToken, requireAdmin, async (req, res) => {
   const { points } = req.body
 
   const { data: user } = await supabase
@@ -202,8 +231,8 @@ app.put('/api/users/:email/points', authenticateToken, async (req, res) => {
   res.json({ success: true, points: newPoints })
 })
 
-// Mettre à jour le profil
-app.put('/api/users/:email/profile', authenticateToken, async (req, res) => {
+// Mettre à jour le profil (soi-même ou admin)
+app.put('/api/users/:email/profile', authenticateToken, requireSelfOrAdmin, async (req, res) => {
   const { prenom, nom, telephone } = req.body
   const { error } = await supabase
     .from('users')
@@ -213,8 +242,11 @@ app.put('/api/users/:email/profile', authenticateToken, async (req, res) => {
   res.json({ success: true })
 })
 
-// Changer le mot de passe
+// Changer le mot de passe (propriétaire uniquement)
 app.put('/api/users/:email/password', authenticateToken, async (req, res) => {
+  if (req.user.email.toLowerCase() !== req.params.email.toLowerCase()) {
+    return res.status(403).json({ success: false, message: 'Vous ne pouvez changer que votre propre mot de passe' })
+  }
   const { currentPassword, newPassword } = req.body
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ success: false, message: 'Champs requis' })
@@ -317,13 +349,13 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
   try {
     await transporter.sendMail({
-      from: `"Solidarité App" <${process.env.EMAIL_USER}>`,
+      from: `"AidLink" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: 'Réinitialisation de votre mot de passe — Solidarité App',
+      subject: 'Réinitialisation de votre mot de passe — AidLink',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f4f4f4;">
           <div style="background: #1e3a5f; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="margin: 0;">Solidarité App</h1>
+            <h1 style="margin: 0;">AidLink</h1>
           </div>
           <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px;">
             <p>Bonjour <strong>${user.prenom} ${user.nom}</strong>,</p>
@@ -385,9 +417,11 @@ app.post('/api/auth/reset-password', async (req, res) => {
 // Créer une demande
 app.post('/api/demandes', authenticateToken, async (req, res) => {
   const {
-    nom, prenom, telephone, email, adresse, ville, numero_paiement,
+    nom, prenom, telephone, adresse, ville, numero_paiement,
     type_besoin, description, situation, preuve_type, preuve_fichier
   } = req.body
+
+  const email = req.user.email
 
   if (!nom || !prenom || !telephone || !email || !adresse || !ville || !type_besoin || !description || !preuve_type) {
     return res.status(400).json({ success: false, message: 'Champs obligatoires manquants' })
@@ -406,8 +440,8 @@ app.post('/api/demandes', authenticateToken, async (req, res) => {
   res.json({ success: true, id: data.id })
 })
 
-// Récupérer toutes les demandes avec pagination (admin)
-app.get('/api/demandes', authenticateToken, async (req, res) => {
+// Récupérer toutes les demandes avec pagination (admin uniquement)
+app.get('/api/demandes', authenticateToken, requireAdmin, async (req, res) => {
   const page = parseInt(req.query.page) || 1
   const limit = parseInt(req.query.limit) || 10
   const from = (page - 1) * limit
@@ -463,6 +497,21 @@ app.get('/api/demandes/valides', async (req, res) => {
   })
 })
 
+// Une demande validée (page publique partageable) — pas de preuves sensibles
+app.get('/api/demandes/valides/:id', async (req, res) => {
+  const { data, error } = await supabase
+    .from('demandes')
+    .select('id, nom, prenom, ville, type_besoin, description, created_at')
+    .eq('id', req.params.id)
+    .eq('statut', 'valide')
+    .single()
+
+  if (error || !data) {
+    return res.status(404).json({ success: false, message: 'Bénéficiaire introuvable ou non validé' })
+  }
+  res.json({ success: true, demande: data })
+})
+
 // Mettre à jour le statut d'une demande (admin)
 app.put('/api/demandes/:id', authenticateToken, requireAdmin, async (req, res) => {
   const { statut, admin_message } = req.body
@@ -479,82 +528,104 @@ app.put('/api/demandes/:id', authenticateToken, requireAdmin, async (req, res) =
 
 // ========== DONS ==========
 
-// Créer un don
+// Créer un don — paiement P2P direct (AidLink n'est pas intermédiaire financier)
 app.post('/api/dons', authenticateToken, async (req, res) => {
   const {
-    donateur_email, type_don, montant, description, beneficiaire_id,
+    type_don, montant, description, beneficiaire_id,
     beneficiaire_nom, beneficiaire_contact, beneficiaire_paiement,
-    mode_paiement, points_gagnes
+    mode_paiement, reference_paiement, preuve_paiement
   } = req.body
 
-  if (!donateur_email || !type_don || !beneficiaire_id || !beneficiaire_nom || !mode_paiement) {
+  const donateur_email = req.user.email
+
+  if (!type_don || !beneficiaire_id || !beneficiaire_nom || !mode_paiement) {
     return res.status(400).json({ success: false, message: 'Champs obligatoires manquants' })
   }
+
+  const ref = (reference_paiement || '').trim()
+  if (!ref && !preuve_paiement) {
+    return res.status(400).json({
+      success: false,
+      message: 'Ajoutez une référence de transaction ou une capture d\'écran du paiement direct'
+    })
+  }
+
+  const points_gagnes = type_don === 'argent'
+    ? Math.floor((parseInt(montant, 10) || 0) / 1000)
+    : 10
 
   const { data, error } = await supabase
     .from('dons')
     .insert([{
       donateur_email, type_don, montant, description, beneficiaire_id,
       beneficiaire_nom, beneficiaire_contact, beneficiaire_paiement,
-      mode_paiement, points_gagnes: points_gagnes || 0,
-      status: 'valide' // ✅ Don automatiquement valide — contact direct
+      mode_paiement, points_gagnes,
+      reference_paiement: ref || null,
+      preuve_paiement: preuve_paiement || null,
+      // Confirmé immédiatement : l'argent a déjà été envoyé en P2P (Wave/OM)
+      status: 'valide'
     }])
     .select('id')
     .single()
 
   if (error) return res.status(500).json({ success: false, message: error.message })
 
-  // ✅ Marquer la demande comme "aide" si bénéficiaire spécifique
+  // Bénéficiaire spécifique → marqué aidé (pas de passage de l'argent par AidLink)
   if (beneficiaire_id && beneficiaire_id !== 'general') {
     await supabase
       .from('demandes')
-      .update({ statut: 'aide', date_aide: new Date().toISOString(), aidant_email: donateur_email })
+      .update({
+        statut: 'aide',
+        date_aide: new Date().toISOString(),
+        aidant_email: donateur_email
+      })
       .eq('id', beneficiaire_id)
   }
 
-  // ✅ Ajouter les points au donateur
   if (points_gagnes > 0) {
-    const { data: user } = await supabase.from('users').select('points').eq('email', donateur_email).single()
-    await supabase.from('users').update({ points: (user?.points || 0) + points_gagnes }).eq('email', donateur_email)
+    const { data: user } = await supabase
+      .from('users')
+      .select('points')
+      .eq('email', donateur_email)
+      .single()
+    await supabase
+      .from('users')
+      .update({ points: (user?.points || 0) + points_gagnes })
+      .eq('email', donateur_email)
   }
 
-  // ✅ Envoyer email de confirmation au donateur
   try {
     const montantFormate = montant ? parseInt(montant).toLocaleString('fr-FR') + ' FCFA' : type_don
-    const beneficiaireInfo = beneficiaire_id === 'general' ? 'Fonds général (distribution équitable)' : beneficiaire_nom
+    const beneficiaireInfo = beneficiaire_id === 'general' ? 'Fonds général' : beneficiaire_nom
 
     await transporter.sendMail({
-      from: `"Solidarité App" <${process.env.EMAIL_USER}>`,
+      from: `"AidLink" <${process.env.EMAIL_USER}>`,
       to: donateur_email,
-      subject: 'Votre don a été enregistré — Solidarité App',
+      subject: 'Don enregistré — transfert direct — AidLink',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f4f4f4;">
           <div style="background: #1e3a5f; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="margin: 0;">Solidarité App</h1>
-            <p style="margin: 8px 0 0; opacity: 0.8;">Merci pour votre générosité</p>
+            <h1 style="margin: 0;">AidLink</h1>
+            <p style="margin: 8px 0 0; opacity: 0.8;">Sans intermédiaire — donateur ↔ bénéficiaire</p>
           </div>
           <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px;">
             <p>Bonjour,</p>
-            <p>Votre don a bien été enregistré sur <strong>Solidarité App</strong>.</p>
-
+            <p>Votre don a bien été enregistré. L'argent a été (ou sera) envoyé <strong>directement</strong> au bénéficiaire via Wave / Orange Money — AidLink ne reçoit jamais les fonds.</p>
             <div style="background: #eff6ff; border-left: 4px solid #2563eb; padding: 15px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="color: #1e40af; margin: 0 0 10px 0;">Récapitulatif de votre don</h3>
+              <h3 style="color: #1e40af; margin: 0 0 10px 0;">Récapitulatif</h3>
               <p style="margin: 5px 0;"><strong>Bénéficiaire :</strong> ${beneficiaireInfo}</p>
               <p style="margin: 5px 0;"><strong>Montant :</strong> ${montantFormate}</p>
-              <p style="margin: 5px 0;"><strong>Mode de paiement :</strong> ${mode_paiement}</p>
-              <p style="margin: 5px 0;"><strong>Points gagnés :</strong> +${points_gagnes || 0} points</p>
+              <p style="margin: 5px 0;"><strong>Mode :</strong> ${mode_paiement}</p>
+              <p style="margin: 5px 0;"><strong>Référence / preuve :</strong> ${ref || 'Capture jointe'}</p>
+              <p style="margin: 5px 0;"><strong>Points :</strong> +${points_gagnes || 0}</p>
             </div>
-
             ${beneficiaire_id !== 'general' && beneficiaire_paiement ? `
             <div style="background: #f0fdf4; border-left: 4px solid #16a34a; padding: 15px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="color: #15803d; margin: 0 0 10px 0;">Numéro de paiement du bénéficiaire</h3>
+              <h3 style="color: #15803d; margin: 0 0 10px 0;">Numéro du bénéficiaire (P2P)</h3>
               <p style="font-size: 1.4em; font-weight: bold; color: #15803d; margin: 0;">${beneficiaire_paiement}</p>
-              <p style="margin: 8px 0 0; color: #166534; font-size: 0.9em;">Envoyez le montant sur ce numéro via ${mode_paiement}</p>
             </div>
             ` : ''}
-
-            <p>Que Allah récompense votre générosité et bénisse vos efforts.</p>
-            <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">L'équipe Solidarité App</p>
+            <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">L'équipe AidLink</p>
           </div>
         </div>
       `
@@ -563,21 +634,21 @@ app.post('/api/dons', authenticateToken, async (req, res) => {
     console.error('Erreur email donateur:', emailErr.message)
   }
 
-  res.json({ success: true, id: data.id })
+  res.json({ success: true, id: data.id, status: 'valide' })
 })
 
-// Récupérer tous les dons (admin) pour stats
+// Historique des dons (admin — consultation, pas intermédiaire)
 app.get('/api/dons/all', authenticateToken, requireAdmin, async (req, res) => {
   const { data, error } = await supabase
     .from('dons')
-    .select('id, montant, created_at, type_don, status')
+    .select('id, montant, created_at, type_don, status, donateur_email, beneficiaire_nom, mode_paiement, reference_paiement, preuve_paiement, points_gagnes, description')
     .order('created_at', { ascending: false })
   if (error) return res.status(500).json({ success: false, message: error.message })
   res.json({ dons: data || [] })
 })
 
-// Récupérer les dons d'un utilisateur avec pagination
-app.get('/api/dons/:email', authenticateToken, async (req, res) => {
+// Récupérer les dons d'un utilisateur avec pagination (soi-même ou admin)
+app.get('/api/dons/:email', authenticateToken, requireSelfOrAdmin, async (req, res) => {
   const page = parseInt(req.query.page) || 1
   const limit = parseInt(req.query.limit) || 10
   const from = (page - 1) * limit
@@ -623,12 +694,26 @@ app.get('/api/demandes/aides', authenticateToken, requireAdmin, async (req, res)
 
 // ========== TEMOIGNAGES ==========
 
-// Ajouter un témoignage
+// Ajouter un témoignage (uniquement sur sa propre demande)
 app.post('/api/temoignages', authenticateToken, async (req, res) => {
   const { demande_id, temoignage } = req.body
   if (!demande_id || !temoignage) {
     return res.status(400).json({ success: false, message: 'Champs requis manquants' })
   }
+
+  const { data: demande } = await supabase
+    .from('demandes')
+    .select('id, email')
+    .eq('id', demande_id)
+    .single()
+
+  if (!demande) {
+    return res.status(404).json({ success: false, message: 'Demande introuvable' })
+  }
+  if (demande.email.toLowerCase() !== req.user.email.toLowerCase() && req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Accès non autorisé' })
+  }
+
   const { error } = await supabase
     .from('demandes')
     .update({ temoignage })
@@ -673,7 +758,7 @@ app.get('/api/stats', async (req, res) => {
   const [donateurs, aides, donsTotal, pointsTotal] = await Promise.all([
     supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'donateur'),
     supabase.from('demandes').select('*', { count: 'exact', head: true }).eq('statut', 'aide'),
-    supabase.from('dons').select('montant'),
+    supabase.from('dons').select('montant').in('status', ['valide', 'aide']),
     supabase.from('users').select('points')
   ])
 
@@ -688,8 +773,8 @@ app.get('/api/stats', async (req, res) => {
   })
 })
 
-// Récupérer les dons reçus par un bénéficiaire
-app.get('/api/dons/recus/:email', authenticateToken, async (req, res) => {
+// Récupérer les dons reçus par un bénéficiaire (soi-même ou admin)
+app.get('/api/dons/recus/:email', authenticateToken, requireSelfOrAdmin, async (req, res) => {
   const page = parseInt(req.query.page) || 1
   const limit = parseInt(req.query.limit) || 10
   const from = (page - 1) * limit
@@ -709,11 +794,12 @@ app.get('/api/dons/recus/:email', authenticateToken, async (req, res) => {
     return res.json({ dons: [], pagination: { page, limit, total: 0, totalPages: 0 } })
   }
 
-  // Chercher les dons par beneficiaire_id
+  // Chercher les dons validés par beneficiaire_id
   const { data, count, error } = await supabase
     .from('dons')
     .select('*', { count: 'exact' })
     .eq('beneficiaire_id', String(demande.id))
+    .in('status', ['valide', 'aide'])
     .order('created_at', { ascending: false })
     .range(from, to)
 
@@ -725,6 +811,24 @@ app.get('/api/dons/recus/:email', authenticateToken, async (req, res) => {
   })
 })
 
-app.listen(PORT, () => {
-  console.log(`🚀 Serveur Supabase démarré sur http://localhost:${PORT}`)
+const HOST = process.env.HOST || '0.0.0.0'
+
+const server = app.listen(PORT, HOST)
+
+server.on('listening', () => {
+  console.log(`🚀 Serveur Supabase démarré sur http://127.0.0.1:${PORT}`)
+  console.log('   Laisse ce terminal ouvert (Ctrl+C pour arrêter).')
+})
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Le port ${PORT} est déjà utilisé.`)
+    console.error('   Dans PowerShell, exécute :')
+    console.error('   Get-NetTCPConnection -LocalPort 5000 | Select-Object -ExpandProperty OwningProcess')
+    console.error('   Stop-Process -Id <PID> -Force')
+    console.error('   Puis relance : npm start')
+    process.exit(1)
+  }
+  console.error('❌ Erreur serveur :', err.message)
+  process.exit(1)
 })
